@@ -4,11 +4,13 @@ version = "0.1.0"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
 
 [dependencies]
-trackable = "0.1"
+aes-ctr = "0.6.0"
 handy_async = "0.2"
-rust-crypto = "0.2"
+hmac = "0.10.1"
 num = "0.1"
+sha-1 = "0.9.2"
 splay_tree = "0.2"
+trackable = "0.1"
 
 [dev-dependencies]
 clap = "2"

@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate trackable;
-extern crate crypto;
+extern crate aes_ctr;
 extern crate handy_async;
+extern crate hmac;
 extern crate num;
+extern crate sha1;
 extern crate splay_tree;
 
 pub use error::{Error, ErrorKind};

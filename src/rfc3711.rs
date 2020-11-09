@@ -1,11 +1,14 @@
-use crypto;
 use handy_async::sync_io::{ReadExt, WriteExt};
 use num::BigUint;
 use splay_tree::SplaySet;
 use std::io::Read;
 
+use aes_ctr::cipher::{NewStreamCipher, SyncStreamCipher};
+use aes_ctr::Aes128Ctr;
+use hmac::{Mac, NewMac};
 use io::{ReadFrom, WriteTo};
 use rfc3550;
+use sha1::Sha1;
 use traits::{ReadPacket, RtcpPacket, RtpPacket};
 use types::U48;
 use {ErrorKind, Result};
@@ -103,8 +106,8 @@ impl SrtpContext {
         let iv = iv ^ (BigUint::from(index) << 16);
         let iv = &iv.to_bytes_be()[0..self.session_encr_key.len()];
 
-        let mut ctr =
-            crypto::aes::ctr(crypto::aes::KeySize::KeySize128, &self.session_encr_key, iv);
+        // FIXME don't use expect
+        let mut ctr = Aes128Ctr::new_var(&self.session_encr_key, iv).expect("Correct Key length!");
         let block_size = self.session_encr_key.len();
 
         let mut decrypted: Vec<u8> = Vec::new();
@@ -112,8 +115,8 @@ impl SrtpContext {
 
         for block in encrypted_portion.chunks(block_size) {
             let old_len = decrypted.len();
-            decrypted.resize(old_len + block.len(), 0);
-            ctr.process(block, &mut decrypted[old_len..]);
+            decrypted.extend_from_slice(block);
+            ctr.apply_keystream(&mut decrypted[old_len..]);
         }
 
         Ok(decrypted)
@@ -200,15 +203,16 @@ impl SrtcpContext {
         let iv = iv ^ (BigUint::from(index) << 16);
         let iv = &iv.to_bytes_be()[0..self.session_encr_key.len()];
 
-        let mut ctr =
-            crypto::aes::ctr(crypto::aes::KeySize::KeySize128, &self.session_encr_key, iv);
+        // FIXME don't use expect
+        let mut ctr = Aes128Ctr::new_var(&self.session_encr_key, iv).expect("Correct Key Length");
+
         let block_size = self.session_encr_key.len();
 
         let mut decrypted = Vec::from(&packet[..8]);
         for block in encrypted_portion.chunks(block_size) {
             let old_len = decrypted.len();
-            decrypted.resize(old_len + block.len(), 0);
-            ctr.process(block, &mut decrypted[old_len..]);
+            decrypted.extend_from_slice(block);
+            ctr.apply_keystream(&mut decrypted[old_len..]);
         }
 
         Ok(decrypted)
@@ -288,28 +292,25 @@ where
 }
 
 fn hmac_hash_sha1(key: &[u8], data: &[u8]) -> Vec<u8> {
-    use crypto::mac::Mac;
-    let mut hmac = crypto::hmac::Hmac::new(crypto::sha1::Sha1::new(), key);
-    hmac.input(data);
-    Vec::from(hmac.result().code())
+    // FIXME don't use expect
+    let mut hmac = hmac::Hmac::<Sha1>::new_varkey(key).expect("Correct Key Length");
+    hmac.update(data);
+    hmac.finalize().into_bytes().to_vec()
 }
 
 fn prf_n(master_key: &[u8], x: BigUint, n: usize) -> Vec<u8> {
     // https://tools.ietf.org/html/rfc3711#section-4.1.1
     let mut output = Vec::new();
-    let mut ctr = crypto::aes::ctr(
-        crypto::aes::KeySize::KeySize128,
-        master_key,
-        &(x << 16).to_bytes_be(),
-    );
+
+    // FIXME don't use expect
+    let mut ctr =
+        Aes128Ctr::new_var(master_key, &(x << 16).to_bytes_be()).expect("Correct Key Length");
     for i in 0.. {
         let old_len = output.len();
-        let new_len = output.len() + 16;
-        output.resize(new_len, 0);
 
-        let mut input = [0; 16];
-        (&mut input[8..]).write_u64be(i).unwrap();
-        ctr.process(&input[..], &mut output[old_len..]);
+        output.extend_from_slice(&u64::to_be_bytes(i));
+
+        ctr.apply_keystream(&mut output[old_len..]);
         if output.len() >= n {
             break;
         }
