@@ -1,45 +1,55 @@
-#[cfg(feature = "openssl")]
-extern crate openssl;
-#[cfg(feature = "tokio")]
-extern crate tokio;
+use std::ops::{BitXor, Shl};
 
-pub use crate::error::{Error, ErrorKind};
-
-pub mod io;
-pub mod rfc3550;
-pub mod rfc3711;
-pub mod rfc4585;
-pub mod rfc5761;
-pub mod rfc5764;
-pub mod traits;
-
-mod error;
-
-pub type Result<T> = ::std::result::Result<T, Error>;
-
-pub mod types {
-    pub type U2 = u8;
-    pub type U4 = u8;
-    pub type U5 = u8;
-    pub type U6 = u8;
-    pub type U7 = u8;
-    pub type U13 = u16;
-    pub type U24 = u32;
-    pub type U48 = u64;
-    pub type RtpTimestamp = u32;
-    pub type NtpTimestamp = u64;
-    pub type NtpMiddleTimetamp = u32;
-    pub type Ssrc = u32;
-    pub type Csrc = u32;
-    pub type SsrcOrCsrc = u32;
+pub trait Protocol {
+    type PacketIndex: Into<u64> + Into<BigUint>;
 }
 
-pub mod constants {
-    pub const RTP_VERSION: u8 = 2;
+fn from_nothing<T>() -> T {
+    todo!()
 }
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
+pub fn decrypt_portion<P: Protocol>(index: P::PacketIndex) {
+    let iv: BigUint = from_nothing();
+    let len: usize = from_nothing();
+    let iv = iv ^ (index.into() << 16);
+    let iv = iv ^ (BigUint::from(1_u8) << (len * 8));
+    let _iv: &[u8] = &iv.to_bytes_be()[1..len + 1];
+}
+
+pub struct BigUint;
+
+impl BigUint {
+    fn to_bytes_be(&self) -> Vec<u8> {
+        todo!()
+    }
+}
+
+impl From<u8> for BigUint {
+    fn from(_: u8) -> Self {
+        unimplemented!()
+    }
+}
+
+impl Shl<usize> for BigUint {
+    type Output = BigUint;
+
+    fn shl(self, _rhs: usize) -> Self::Output {
+        unimplemented!()
+    }
+}
+
+impl BitXor for BigUint {
+    type Output = BigUint;
+
+    fn bitxor(self, _rhs: Self) -> Self::Output {
+        unimplemented!()
+    }
+}
+
+impl<'a> BitXor<&'a BigUint> for BigUint {
+    type Output = BigUint;
+
+    fn bitxor(self, _rhs: &'a BigUint) -> Self::Output {
+        unimplemented!()
+    }
 }
