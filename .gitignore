@@ -1,2 +1,5 @@
 target
 Cargo.lock
+/target-bisector-ci-*-x86_64-unknown-linux-gnu/
+/target-bisector-nightly-*-x86_64-unknown-linux-gnu/
+/rust.git/
